@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Ce projet propose une configuration Docker pour exécuter un site WordPress. Il simplifie le processus de déploiement de WordPress avec Docker, permettant de mettre en place rapidement un site WordPress dans un environnement conteneurisé.
+WPModelDocker est un projet conçu pour simplifier le déploiement et la gestion de sites WordPress en utilisant Docker. Ce projet fournit une configuration Docker Compose qui orchestre plusieurs conteneurs, y compris WordPress, MySQL, PhpMyAdmin et Nginx, pour créer un environnement de développement ou de production robuste et facile à utiliser pour WordPress.
 
 ## Prérequis
 

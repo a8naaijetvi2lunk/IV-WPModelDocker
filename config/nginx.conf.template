@@ -1,0 +1,63 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+
+    server {
+
+        listen ${NGINX_PORT};
+        server_name ${NGINX_SERVER_NAME};
+        root /var/www/html;
+        index index.php index.html index.htm;
+          add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        
+        location ~ \.php$ {
+            fastcgi_split_path_info ^(.+\.php)(/.+)$;
+            fastcgi_pass wp:9000;
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param PATH_INFO $fastcgi_path_info;
+        }
+     
+        location / {
+            try_files $uri $uri/ /index.php?$args;
+        }
+
+        location ~ ^/wp-admin(/|$) {
+            index index.php;
+            try_files $uri $uri/ /wp-admin/index.php?$args;
+        }
+
+
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|gif|mp4|webp)$ {
+                expires max;
+                log_not_found off;
+        }
+
+         location /wp-content/uploads/ {
+                alias /var/www/html/wp-content/uploads/;
+        }
+
+        location ~* ^/wp-content/uploads/(.+)$ {
+                try_files $uri $uri/ /wp-content/uploads/$1;
+        }
+
+        location ~ ^/(\.\./)?wp-content/uploads/(.*)$ {
+                try_files /wp-content/uploads/$2 =404;
+        }
+        location = /robots.txt {
+                allow all;
+                log_not_found off;
+                access_log off;
+        }    
+        
+    }
+}

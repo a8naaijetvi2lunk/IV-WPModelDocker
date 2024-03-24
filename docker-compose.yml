@@ -1,0 +1,116 @@
+version: '3'
+
+services:
+  db:
+    image: mysql:latest
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./wp-app/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+# Définit le service de base de données MySQL
+# Utilise l'image MySQL la plus récente
+# Monte un volume pour persister les données de la base de données
+# Monte un fichier init.sql pour initialiser la base de données
+# Définit les variables d'environnement pour la configuration de MySQL
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: ${UPLOAD_LIMIT}
+    volumes:
+      - ./config/pma_php.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./config/pma_config.php:/etc/phpmyadmin/config.user.inc.php
+# Définit le service phpMyAdmin pour gérer la base de données via une interface Web
+# Utilise l'image phpMyAdmin la plus récente
+# Expose le port 8080 pour accéder à phpMyAdmin
+# Dépend du service de base de données
+# Définit les variables d'environnement pour la configuration de phpMyAdmin
+# Monte des fichiers de configuration personnalisés pour phpMyAdmin
+
+  wp:
+    container_name: ${WORDPRESS_URL_SITE}
+    image: wordpress:php8.3-fpm-alpine
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./config/wp_php.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./wp-app/wp/wp-config.php:/var/www/html/wp-config.php
+      - ./wp-app/wp/wp-content/themes:/var/www/html/wp-content/themes
+      - ./wp-app/wp/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wp-app/wp/wp-content/uploads:/var/www/html/wp-content/uploads
+      - ./wp-app/wp:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_URL_SITE: ${WORDPRESS_URL_SITE}
+    depends_on:
+      - db
+    links:
+      - db
+# Définit le service WordPress
+# Utilise l'image WordPress avec PHP 8.3 et FPM (FastCGI Process Manager)
+# Ouvre stdin et alloue un pseudo-tty pour une interaction interactive
+# Monte des volumes pour la configuration de PHP, le fichier wp-config.php et les répertoires des thèmes, des plugins et des uploads
+# Définit les variables d'environnement pour la configuration de WordPress
+# Dépend du service de base de données et est lié à celui-ci
+
+  wpcli:
+    image: wordpress:cli-php8.3
+    volumes:
+      - ./wp-app/wp:/var/www/html
+      - ./wp-app/wp/wp-config.php:/var/www/html/wp-config.php
+    depends_on:
+      - db
+      - wp
+    entrypoint: ["sh", "-c", "wp --allow-root shell"]
+    command: ["--info"]
+    stdin_open: true
+    tty: true
+    environment:
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+# Définit le service WP-CLI pour exécuter des commandes WordPress en ligne de commande
+# Utilise l'image WordPress avec WP-CLI préinstallé
+# Monte les volumes nécessaires pour accéder à l'installation WordPress
+# Dépend des services de base de données et WordPress
+# Définit le point d'entrée pour exécuter WP-CLI avec les droits root et ouvre un shell interactif
+# Définit les variables d'environnement pour la configuration de la base de données WordPress
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./config/nginx.conf.template:/etc/nginx/nginx.conf.template
+      - ./wp-app/wp:/var/www/html
+    environment:
+      - NGINX_PORT=${NGINX_PORT}
+      - NGINX_SERVER_NAME=${NGINX_SERVER_NAME}
+    command: /bin/bash -c "envsubst '$$NGINX_PORT $$NGINX_SERVER_NAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    depends_on:
+      - wp
+    ports:
+      - "${NGINX_PORT}:${NGINX_PORT}"
+# Définit le service Nginx comme serveur Web
+# Utilise l'image Nginx la plus récente
+# Monte un fichier de configuration Nginx et le répertoire WordPress
+# Définit les variables d'environnement pour la configuration de Nginx
+# Utilise une commande pour générer le fichier de configuration Nginx à partir d'un template en utilisant envsubst et démarre Nginx en mode foreground
+# Dépend du service WordPress
+# Expose le port spécifié dans la variable d'environnement NGINX_PORT
+
+
+volumes:
+  db_data: {}
+# Définit un volume nommé db_data pour persister les données de la base de données
